@@ -27,7 +27,6 @@ Add ``ordered_model`` to your ``SETTINGS.INSTALLED_APPS``.
 To add ordering to your model, inherit from the ``OrderedModel`` class::
 
     from django.db import models
-
     from ordered_model.models import OrderedModel
 
     class Item(OrderedModel):
@@ -38,18 +37,17 @@ relative to each other.
 
 To add re-ordering controls to a model's admin interface, inherit from the
 ``OrderedModelAdmin`` class.  Your model admin will now have a method called
-``order_links``, which outputs html for two buttons which control model
+``move_up_down_links``, which outputs html for two buttons which control model
 ordering.  Use the admin class's ``list_display`` property to add these buttons
 into the admin interface::
 
     from django.contrib import admin
-
     from ordered_model.admin import OrderedModelAdmin
-
     from .models import Item
 
+
     class ItemAdmin(OrderedModelAdmin):
-        list_display = ('name', 'order_links')
+        list_display = ('name', 'move_up_down_links')
 
     admin.site.register(Item, ItemAdmin)
 
