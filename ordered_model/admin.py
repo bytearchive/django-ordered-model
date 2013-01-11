@@ -1,53 +1,45 @@
 from django.conf import settings
+from django.conf.urls.defaults import patterns, url
 from django.contrib import admin
 from django.contrib.admin.util import unquote
 from django.core.urlresolvers import reverse
 from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404
-from django.utils.functional import update_wrapper
-from django.utils.html import strip_spaces_between_tags as short
 from django.utils.translation import ugettext_lazy as _
 
+
 class OrderedModelAdmin(admin.ModelAdmin):
+    UP_LINK_FORMAT = '<a href="{url}"><img src="' + settings.STATIC_URL + 'ordered_model/arrow-up.gif" alt="Move up" /></a>'
+    DOWN_LINK_FORMAT = '<a href="{url}"><img src="' + settings.STATIC_URL + 'ordered_model/arrow-down.gif" alt="Move down" /></a>'
+
+    @property
+    def _model_info(self):
+        return '{0}_{1}_'.format(
+            self.model._meta.app_label,
+            self.model._meta.module_name,
+        )
+
     def get_urls(self):
-        from django.conf.urls.defaults import patterns, url
-        def wrap(view):
-            def wrapper(*args, **kwargs):
-                return self.admin_site.admin_view(view)(*args, **kwargs)
-            return update_wrapper(wrapper, view)
-        info = self.model._meta.app_label, self.model._meta.module_name
-        return patterns('',
-            url(r'^(.+)/move-(up)/$',
-                wrap(self.move_view),
-                name='%s_%s_move_up' % info),
-            url(r'^(.+)/move-(down)/$',
-                wrap(self.move_view),
-                name='%s_%s_move_down' % info),
+        return patterns(
+            '',
+            url(r'^(.+)/move-up/$', self.admin_site.admin_view(self.move_up), name=self._model_info + 'move_up'),
+            url(r'^(.+)/move-down/$', self.admin_site.admin_view(self.move_down), name=self._model_info + 'move_down'),
         ) + super(OrderedModelAdmin, self).get_urls()
-        
-    def move_view(self, request, object_id, direction):
+
+    def move_up(self, request, object_id):
         obj = get_object_or_404(self.model, pk=unquote(object_id))
-        if direction == 'up':
-            obj.move_up()
-        else:
-            obj.move_down()
-        return HttpResponseRedirect('../../')
-    
-    link_html = short("""
-        <a href="../../%(app_label)s/%(module_name)s/%(object_id)s/move-up/">
-            <img src="%(STATIC_URL)sordered_model/arrow-up.gif" alt="Move up" />
-        </a>
-        <a href="../../%(app_label)s/%(module_name)s/%(object_id)s/move-down/">
-            <img src="%(STATIC_URL)sordered_model/arrow-down.gif" alt="Move down" />
-        </a>""")
-    
+        obj.move_up()
+        return HttpResponseRedirect(reverse('admin:{0}changelist'.format(self._model_info)))
+
+    def move_down(self, request, object_id):
+        obj = get_object_or_404(self.model, pk=unquote(object_id))
+        obj.move_down()
+        return HttpResponseRedirect(reverse('admin:{0}changelist'.format(self._model_info)))
+
     def move_up_down_links(self, obj):
-        return self.link_html % {
-            'app_label': self.model._meta.app_label,
-            'module_name': self.model._meta.module_name,
-            'object_id': obj.id,
-            'STATIC_URL': settings.STATIC_URL,
-        }
+        up_url = reverse('admin:{0}move_up'.format(self._model_info), args=[obj.id])
+        down_url = reverse('admin:{0}move_down'.format(self._model_info), args=[obj.id])
+        return self.UP_LINK_FORMAT.format(url=up_url) + ' ' + self.DOWN_LINK_FORMAT.format(url=down_url)
+
     move_up_down_links.allow_tags = True
     move_up_down_links.short_description = _(u'Move')
-    
